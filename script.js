@@ -1,53 +1,63 @@
-let scene, camera, renderer, model, xrSession;
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.143.0/build/three.module.js';
+import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.143.0/examples/jsm/ARButton.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.143.0/examples/jsm/loaders/GLTFLoader.js';
+
+let scene, camera, renderer, model;
 
 function init() {
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true;
-  document.getElementById('ar-container').appendChild(renderer.domElement);
+    // Set up the scene
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('ar-container').appendChild(renderer.domElement);
+    
+    // Add AR Button
+    document.body.appendChild(ARButton.createButton(renderer));
 
-  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-  scene.add(light);
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 
-  if (navigator.xr) {
-    navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-      if (supported) {
-        document.getElementById('ar-button').style.display = 'block';
-        document.getElementById('ar-button').addEventListener('click', () => {
-          navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local-floor'] })
-            .then(onSessionStarted)
-            .catch(err => console.error("Failed to start XR session:", err));
-        });
-      } else {
-        console.warn("WebXR not supported");
-      }
-    }).catch(err => console.error("Error checking WebXR support:", err));
-  } else {
-    console.warn("WebXR API not available");
-  }
-}
+    // Set up event listeners
+    document.getElementById('ar-button').addEventListener('click', () => {
+        if (renderer.xr.isPresenting) {
+            renderer.xr.getController(0).remove(model);
+            renderer.xr.getController(1).remove(model);
+            renderer.xr.getSession().end();
+        } else {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    renderer.xr.getController(0).add(model);
+                    renderer.xr.getController(1).add(model);
+                    renderer.xr.getSession().start();
+                });
+        }
+    });
 
-function onSessionStarted(session) {
-  xrSession = session;
-  renderer.xr.setSession(session);
-  session.addEventListener('end', onSessionEnded);
-  animate();
-}
+    // Handle model upload
+    document.getElementById('model-upload').addEventListener('change', event => {
+        const file = event.target.files[0];
+        if (file) {
+            const loader = new GLTFLoader();
+            loader.load(URL.createObjectURL(file), gltf => {
+                if (model) scene.remove(model);
+                model = gltf.scene;
+                scene.add(model);
+            });
+        }
+    });
 
-function onSessionEnded() {
-  xrSession.removeEventListener('end', onSessionEnded);
-  xrSession = null;
-  renderer.xr.setSession(null);
+    animate();
 }
 
 function animate() {
-  renderer.setAnimationLoop(render);
-}
-
-function render() {
-  renderer.render(scene, camera);
+    renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+    });
 }
 
 init();
