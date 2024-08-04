@@ -4,11 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WebAR Example</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body { margin: 0; }
+    #ar-container { width: 100vw; height: 100vh; }
+  </style>
 </head>
 <body>
-  <h1>WebAR Example</h1>
-  <input type="file" id="file-input" accept=".glb, .gltf">
   <button id="ar-button" style="display:none;">View AR</button>
   <div id="ar-container"></div>
 
